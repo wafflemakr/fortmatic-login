@@ -1,15 +1,14 @@
 import React, { useState, useEffect } from "react";
 
 import "./App.css";
+import Torus from "@toruslabs/torus-embed";
 
 let web3;
 
 function App() {
   const [user, setUser] = useState(null);
   const [error, setError] = useState(null);
-  const [loginFortmatic, setLoginFortmatic] = useState(false);
-  const [loginMetamask, setLoginMetamask] = useState(false);
-  const [loginPortis, setLoginPortis] = useState(false);
+  const [login, setLogin] = useState(null);
 
   async function getAccount() {
     await web3.currentProvider.enable();
@@ -19,51 +18,50 @@ function App() {
   }
 
   useEffect(() => {
-    if (loginFortmatic) {
-      (async function() {
-        try {
-          let fm = new window.Fortmatic(
-            process.env.REACT_APP_FORTMATIC_API_KEY
-          );
-          web3 = new window.Web3(fm.getProvider());
-          await getAccount();
-        } catch (e) {
-          setError("Error:" + e.message);
-        }
-      })();
-    }
-  }, [loginFortmatic]);
+    (async function() {
+      try {
+        switch (login) {
+          case "Fortmatic": {
+            let fm = new window.Fortmatic(
+              process.env.REACT_APP_FORTMATIC_API_KEY
+            );
+            web3 = new window.Web3(fm.getProvider());
+            await getAccount();
+            break;
+          }
+          case "Portis": {
+            const portis = new window.Portis(
+              process.env.REACT_APP_PORTIS_DAPP_ID,
+              "rinkeby"
+            );
+            web3 = new window.Web3(portis.provider);
+            await getAccount();
+            break;
+          }
 
-  useEffect(() => {
-    if (loginMetamask) {
-      (async function() {
-        try {
-          web3 = new window.Web3(window.ethereum);
-          await window.ethereum.enable();
-          await getAccount();
-        } catch (e) {
-          setError("Error:" + e.message);
+          case "Metamask": {
+            web3 = new window.Web3(window.ethereum);
+            await window.ethereum.enable();
+            await getAccount();
+            break;
+          }
+          case "Torus": {
+            const torus = new Torus();
+            await torus.init();
+            await torus.login(); // await torus.ethereum.enable()
+            web3 = new window.Web3(torus.provider);
+            sessionStorage.setItem("pageUsingTorus", true);
+            await getAccount();
+            break;
+          }
+          default:
+            return null;
         }
-      })();
-    }
-  }, [loginMetamask]);
-
-  useEffect(() => {
-    if (loginPortis) {
-      (async function() {
-        try {
-          const portis = new window.Portis(
-            process.env.REACT_APP_PORTIS_DAPP_ID,
-            "rinkeby"
-          );
-          web3 = new window.Web3(portis.provider);
-          await getAccount();
-        } catch (e) {
-          setError("Error:" + e.message);
-        }
-      })();
-    }
-  }, [loginPortis]);
+      } catch (e) {
+        setError("Error:" + e.message);
+      }
+    })();
+  }, [login]);
 
   const renderInfo = user ? (
     <>
@@ -79,14 +77,17 @@ function App() {
       <div className="container">
         {renderInfo}
         {renderError}
-        <button className="login" onClick={() => setLoginFortmatic(true)}>
+        <button className="login" onClick={() => setLogin("Fortmatic")}>
           Connect with Fortmatic
         </button>
-        <button className="login" onClick={() => setLoginMetamask(true)}>
+        <button className="login" onClick={() => setLogin("Metamask")}>
           Connect with Metamask
         </button>
-        <button className="login" onClick={() => setLoginPortis(true)}>
+        <button className="login" onClick={() => setLogin("Portis")}>
           Connect with Portis
+        </button>
+        <button className="login" onClick={() => setLogin("Torus")}>
+          Connect with Torus
         </button>
       </div>
     </div>
